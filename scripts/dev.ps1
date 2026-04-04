@@ -15,7 +15,7 @@ $go    = (Get-Command go).Source
 $ngrok = (Get-Command ngrok).Source
 
 Write-Host "Starting server..."
-$server = Start-Process -FilePath $go -ArgumentList "run main.go" -NoNewWindow -PassThru
+$server = Start-Process -FilePath $go -ArgumentList "run server/main.go" -NoNewWindow -PassThru
 
 Start-Sleep -Seconds 2
 

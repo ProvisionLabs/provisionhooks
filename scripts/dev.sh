@@ -8,7 +8,7 @@ command -v ngrok >/dev/null 2>&1 || { echo "ngrok is required but not installed.
 command -v go >/dev/null 2>&1 || { echo "go is required but not installed. See: https://golang.org/dl/"; exit 1; }
 
 echo "Starting server..."
-go run main.go &
+go run server/main.go &
 SERVER_PID=$!
 
 # cleanup on exit (Ctrl+C or crash)

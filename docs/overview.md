@@ -73,7 +73,8 @@ Multiple webhooks can arrive at the same time. Go handles this naturally with go
 
 ```
 webhook-tester/
-├── main.go                  # Entry point, starts HTTP server
+├── server/
+│   ├── main.go              # Entry point, starts HTTP server
 ├── handler/
 │   ├── webhook.go           # POST /hooks — receives and stores requests
 │   ├── stream.go            # GET /hooks/events — SSE stream
@@ -163,7 +164,7 @@ ngrok config add-authtoken <your-token>
 ```bash
 git clone https://github.com/youruser/webhook-tester
 cd webhook-tester
-go run main.go
+go run server/main.go
 # Server running at http://localhost:8080
 ```
 
