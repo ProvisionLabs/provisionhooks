@@ -1,0 +1,678 @@
+<!doctype html>
+<html lang="pt-BR">
+   <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>Webhook Tester</title>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link
+         href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;600&family=Instrument+Serif:ital@0;1&display=swap"
+         rel="stylesheet"
+      />
+      <style>
+         :root {
+            --bg: #0c0c0d;
+            --surface: #141416;
+            --surface2: #1c1c1f;
+            --border: #2a2a2e;
+            --border2: #38383d;
+            --text: #f0f0f0;
+            --muted: #6e6e7a;
+            --green: #22c55e;
+            --green-dim: #14532d;
+            --amber: #f59e0b;
+            --red: #ef4444;
+            --blue: #60a5fa;
+            --mono: "Geist Mono", "Fira Code", monospace;
+            --serif: "Instrument Serif", Georgia, serif;
+         }
+
+         * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+         }
+
+         body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--mono);
+            font-size: 13px;
+            line-height: 1.5;
+            min-height: 100dvh;
+            display: grid;
+            grid-template-rows: auto 1fr;
+         }
+
+         /* ─── Header ───────────────────────────────── */
+         header {
+            border-bottom: 1px solid var(--border);
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background: rgba(12, 12, 13, 0.92);
+            backdrop-filter: blur(12px);
+         }
+
+         .logo {
+            font-family: var(--serif);
+            font-size: 1.35rem;
+            font-style: italic;
+            color: var(--text);
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+         }
+
+         .logo span {
+            color: var(--green);
+            font-style: normal;
+         }
+
+         .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--muted);
+            flex-shrink: 0;
+            transition: background 0.3s;
+         }
+         .status-dot.connected {
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+         }
+         .status-dot.error {
+            background: var(--red);
+         }
+
+         .status-label {
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+         }
+
+         .spacer {
+            flex: 1;
+         }
+
+         .counter {
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 0.05em;
+         }
+         .counter strong {
+            color: var(--text);
+         }
+
+         .btn-clear {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border2);
+            background: transparent;
+            color: var(--muted);
+            font-family: var(--mono);
+            font-size: 11px;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition:
+               color 0.15s,
+               border-color 0.15s;
+         }
+         .btn-clear:hover {
+            color: var(--red);
+            border-color: var(--red);
+         }
+
+         /* ─── Layout ───────────────────────────────── */
+         .layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            height: calc(100dvh - 57px);
+            overflow: hidden;
+         }
+
+         /* ─── Sidebar list ──────────────────────────── */
+         .sidebar {
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border2) transparent;
+         }
+
+         .sidebar-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 2;
+         }
+         .sidebar-empty .icon {
+            font-size: 2rem;
+            display: block;
+            margin-bottom: 8px;
+            opacity: 0.4;
+         }
+
+         .req-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.1s;
+            position: relative;
+            overflow: hidden;
+         }
+         .req-item::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: var(--surface2);
+            opacity: 0;
+            transition: opacity 0.1s;
+         }
+         .req-item:hover::before {
+            opacity: 1;
+         }
+         .req-item.active {
+            background: var(--surface2);
+         }
+         .req-item.active::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--green);
+         }
+         .req-item.new-flash {
+            animation: flash 0.6s ease-out;
+         }
+         @keyframes flash {
+            0% {
+               background: color-mix(in srgb, var(--green) 15%, transparent);
+            }
+            100% {
+               background: transparent;
+            }
+         }
+
+         .method-tag {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            position: relative;
+            z-index: 1;
+         }
+         .method-tag.POST {
+            background: #1a3a2a;
+            color: var(--green);
+         }
+         .method-tag.GET {
+            background: #1a2a4a;
+            color: var(--blue);
+         }
+         .method-tag.PUT {
+            background: #3a2a10;
+            color: var(--amber);
+         }
+         .method-tag.PATCH {
+            background: #3a2a10;
+            color: var(--amber);
+         }
+         .method-tag.DELETE {
+            background: #3a1a1a;
+            color: var(--red);
+         }
+         .method-tag.OTHER {
+            background: var(--surface2);
+            color: var(--muted);
+         }
+
+         .req-path {
+            font-size: 12px;
+            color: var(--muted);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            position: relative;
+            z-index: 1;
+         }
+         .req-item.active .req-path {
+            color: var(--text);
+         }
+
+         .req-time {
+            font-size: 10px;
+            color: var(--muted);
+            white-space: nowrap;
+            position: relative;
+            z-index: 1;
+         }
+
+         /* ─── Detail panel ──────────────────────────── */
+         .detail {
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border2) transparent;
+         }
+
+         .detail-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--muted);
+            font-size: 12px;
+            gap: 8px;
+            opacity: 0.5;
+         }
+         .detail-empty .icon {
+            font-size: 2.5rem;
+         }
+
+         .detail-content {
+            padding: 24px;
+            display: grid;
+            gap: 24px;
+            max-width: 900px;
+         }
+
+         .detail-hero {
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            flex-wrap: wrap;
+         }
+         .detail-method {
+            font-size: 1rem;
+            font-weight: 600;
+         }
+         .detail-path {
+            font-size: 1rem;
+            color: var(--muted);
+            word-break: break-all;
+         }
+         .detail-time {
+            font-size: 11px;
+            color: var(--muted);
+            margin-left: auto;
+         }
+
+         .section-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--muted);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+         }
+         .section-label::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+         }
+
+         .headers-grid {
+            display: grid;
+            gap: 1px;
+            background: var(--border);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+         }
+         .header-row {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            background: var(--surface);
+         }
+         .header-key {
+            padding: 7px 12px;
+            color: var(--muted);
+            border-right: 1px solid var(--border);
+            word-break: break-all;
+         }
+         .header-val {
+            padding: 7px 12px;
+            color: var(--text);
+            word-break: break-all;
+         }
+
+         pre {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            overflow: auto;
+            font-family: var(--mono);
+            font-size: 12px;
+            line-height: 1.6;
+            color: var(--text);
+            white-space: pre-wrap;
+            word-break: break-word;
+         }
+         .empty-body {
+            color: var(--muted);
+            font-style: italic;
+         }
+
+         /* json syntax highlight */
+         .json-key {
+            color: #93c5fd;
+         }
+         .json-str {
+            color: #86efac;
+         }
+         .json-num {
+            color: #fcd34d;
+         }
+         .json-bool {
+            color: #f87171;
+         }
+         .json-null {
+            color: #9ca3af;
+         }
+
+         @media (max-width: 680px) {
+            .layout {
+               grid-template-columns: 1fr;
+            }
+            .sidebar {
+               max-height: 240px;
+               border-right: none;
+               border-bottom: 1px solid var(--border);
+            }
+         }
+      </style>
+   </head>
+   <body>
+      <header>
+         <div class="logo">webhook<span>.</span>tester</div>
+         <div class="status-dot" id="dot"></div>
+         <div class="status-label" id="statusLabel">connecting…</div>
+         <div class="spacer"></div>
+         <div class="counter" id="counter"><strong>0</strong> requests</div>
+      </header>
+
+      <div class="layout">
+         <aside class="sidebar" id="sidebar">
+            <div class="sidebar-empty" id="sidebarEmpty">
+               <span class="icon">⇣</span>
+               Aguardando webhooks em<br /><strong>/hook</strong>
+            </div>
+         </aside>
+
+         <section class="detail" id="detail">
+            <div class="detail-empty" id="detailEmpty">
+               <span class="icon">←</span>
+               Selecione uma requisição
+            </div>
+         </section>
+      </div>
+
+      <script>
+         // ─── State ──────────────────────────────────
+         let requests = [];
+         let selectedId = null;
+         let requestSeq = 0;
+
+         // ─── Elements ───────────────────────────────
+         const dot = document.getElementById("dot");
+         const statusLabel = document.getElementById("statusLabel");
+         const counter = document.getElementById("counter");
+         const sidebar = document.getElementById("sidebar");
+         const sidebarEmpty = document.getElementById("sidebarEmpty");
+         const detail = document.getElementById("detail");
+         const detailEmpty = document.getElementById("detailEmpty");
+
+         // ─── SSE ────────────────────────────────────
+         function connect() {
+            const src = new EventSource("/hooks/events");
+
+            src.addEventListener("snapshot", (e) => {
+               const payload = JSON.parse(e.data) || [];
+               requests = payload.map(normalizeRequest);
+               renderSidebar();
+               if (selectedId) renderDetail(selectedId);
+               setStatus("connected");
+            });
+
+            src.addEventListener("webhook", (e) => {
+               const req = normalizeRequest(JSON.parse(e.data));
+               requests.push(req);
+               prependItem(req);
+               updateCounter();
+               // Auto-select first incoming if nothing is selected
+               if (!selectedId) selectRequest(req.id);
+            });
+
+            src.onopen = () => setStatus("connected");
+            src.onerror = () => {
+               setStatus("error");
+               // EventSource retries automatically; just update UI
+            };
+         }
+
+         function setStatus(s) {
+            dot.className = "status-dot " + s;
+            statusLabel.textContent =
+               s === "connected" ? "connected" : "reconnecting…";
+         }
+
+         // ─── Render sidebar ─────────────────────────
+         function renderSidebar() {
+            sidebar.innerHTML = "";
+            if (requests.length === 0) {
+               sidebar.appendChild(sidebarEmpty);
+               return;
+            }
+            // Most recent first
+            [...requests].reverse().forEach((req) => {
+               sidebar.appendChild(buildItem(req));
+            });
+            updateCounter();
+         }
+
+         function prependItem(req) {
+            sidebarEmpty.remove();
+            const item = buildItem(req);
+            item.classList.add("new-flash");
+            sidebar.prepend(item);
+            updateCounter();
+         }
+
+         function buildItem(req) {
+            const el = document.createElement("div");
+            el.className =
+               "req-item" +
+               (String(req.id) === String(selectedId) ? " active" : "");
+            el.dataset.id = String(req.id);
+
+            const method = (req.method || "OTHER").toUpperCase();
+            const knownMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+            const tagClass = knownMethods.includes(method) ? method : "OTHER";
+
+            const time = formatTime(req.received_at);
+
+            el.innerHTML = `
+          <span class="method-tag ${tagClass}">${esc(method)}</span>
+               <span class="req-path">${esc(req.path || "/hooks")}</span>
+          <span class="req-time">${esc(time)}</span>
+        `;
+            el.addEventListener("click", () => selectRequest(req.id));
+            return el;
+         }
+
+         function updateCounter() {
+            counter.innerHTML = `<strong>${requests.length}</strong> request${requests.length !== 1 ? "s" : ""}`;
+         }
+
+         // ─── Detail panel ───────────────────────────
+         function selectRequest(id) {
+            selectedId = id;
+            // Update active state in sidebar
+            sidebar.querySelectorAll(".req-item").forEach((el) => {
+               el.classList.toggle("active", el.dataset.id === String(id));
+            });
+            renderDetail(id);
+         }
+
+         function renderDetail(id) {
+            const req = requests.find((r) => String(r.id) === String(id));
+            if (!req) {
+               detail.innerHTML = "";
+               detail.appendChild(detailEmpty);
+               return;
+            }
+
+            const method = (req.method || "").toUpperCase();
+            const knownMethods = ["GET", "POST", "PUT", "PATCH", "DELETE"];
+            const tagClass = knownMethods.includes(method) ? method : "OTHER";
+
+            detail.innerHTML = `
+          <div class="detail-content">
+            <div class="detail-hero">
+              <span class="method-tag ${tagClass} detail-method">${esc(method)}</span>
+                     <span class="detail-path">${esc(req.path || "/hooks")}</span>
+              <span class="detail-time">${esc(req.received_at || "")}</span>
+            </div>
+
+            <div>
+              <div class="section-label">Headers</div>
+              ${renderHeaders(req.headers)}
+            </div>
+
+            <div>
+              <div class="section-label">Body</div>
+              ${renderBody(req.body)}
+            </div>
+          </div>
+        `;
+         }
+
+         function renderHeaders(headers) {
+            const entries = Object.entries(headers || {});
+            if (!entries.length)
+               return '<pre class="empty-body">(no headers)</pre>';
+
+            const rows = entries
+               .map(([k, v]) => {
+                  const val = Array.isArray(v) ? v.join(", ") : String(v);
+                  return `<div class="header-row">
+            <div class="header-key">${esc(k)}</div>
+            <div class="header-val">${esc(val)}</div>
+          </div>`;
+               })
+               .join("");
+
+            return `<div class="headers-grid">${rows}</div>`;
+         }
+
+         function renderBody(body) {
+            if (!body || !body.trim()) {
+               return '<pre><span class="empty-body">(empty body)</span></pre>';
+            }
+            try {
+               const parsed = JSON.parse(body);
+               return `<pre>${syntaxHighlight(JSON.stringify(parsed, null, 2))}</pre>`;
+            } catch {
+               return `<pre>${esc(body)}</pre>`;
+            }
+         }
+
+         // ─── Syntax highlight JSON ───────────────────
+         function syntaxHighlight(json) {
+            return esc(json).replace(
+               /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+               (match) => {
+                  if (/^"/.test(match)) {
+                     return match.endsWith(":")
+                        ? `<span class="json-key">${match}</span>`
+                        : `<span class="json-str">${match}</span>`;
+                  }
+                  if (/true|false/.test(match))
+                     return `<span class="json-bool">${match}</span>`;
+                  if (/null/.test(match))
+                     return `<span class="json-null">${match}</span>`;
+                  return `<span class="json-num">${match}</span>`;
+               },
+            );
+         }
+
+         // ─── Helpers ────────────────────────────────
+         function esc(s) {
+            return String(s ?? "")
+               .replace(/&/g, "&amp;")
+               .replace(/</g, "&lt;")
+               .replace(/>/g, "&gt;")
+               .replace(/"/g, "&quot;");
+         }
+
+         function formatTime(iso) {
+            if (!iso) return "";
+            try {
+               return new Date(iso).toLocaleTimeString("pt-BR", {
+                  hour12: false,
+               });
+            } catch {
+               return iso;
+            }
+         }
+
+         function normalizeRequest(raw) {
+            const source = raw || {};
+            const method = source.method || source.Method || "OTHER";
+            const headers = source.headers || source.Headers || {};
+            const receivedAt =
+               source.received_at ||
+               source.ReceivedAt ||
+               new Date().toISOString();
+            const path = source.path || source.Path || "/hooks";
+
+            let body = source.body;
+            if (typeof body === "undefined") {
+               body = source.Body;
+            }
+
+            if (body == null) {
+               body = "";
+            } else if (typeof body !== "string") {
+               try {
+                  body = JSON.stringify(body);
+               } catch {
+                  body = String(body);
+               }
+            }
+
+            requestSeq += 1;
+            const id = source.id || source.ID || `${receivedAt}-${requestSeq}`;
+
+            return {
+               id,
+               method,
+               headers,
+               body,
+               received_at: receivedAt,
+               path,
+            };
+         }
+
+         // ─── Boot ───────────────────────────────────
+         connect();
+      </script>
+   </body>
+</html>
