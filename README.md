@@ -1,5 +1,7 @@
 # webhook-tester
 
+![Webhook Tester Demo](docs/webhook-tester.gif)
+
 Webhook Tester is a lightweight Go service for receiving webhook requests locally and inspecting them in real time from a browser UI.
 
 ## Overview
