@@ -8,14 +8,23 @@ if (-not (Get-Command ngrok -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-# kill only previously spawned processes by this script (safe cleanup)
+# safe cleanup
 $ErrorActionPreference = "Stop"
 
 $go    = (Get-Command go).Source
 $ngrok = (Get-Command ngrok).Source
 
+# define output binary in a safe folder
+$binFolder = "C:\dev\webhook-tester-bin"
+if (-not (Test-Path $binFolder)) { New-Item -ItemType Directory -Path $binFolder | Out-Null }
+$exePath = Join-Path $binFolder "server.exe"
+
+# build the server explicitly (avoids temp exe in %AppData%)
+Write-Host "Building server..."
+& $go build -o $exePath "server/main.go"
+
 Write-Host "Starting server..."
-$server = Start-Process -FilePath $go -ArgumentList "run server/main.go" -NoNewWindow -PassThru
+$server = Start-Process -FilePath $exePath -NoNewWindow -PassThru
 
 Start-Sleep -Seconds 2
 
