@@ -1,8 +1,8 @@
 package handler
 
 import (
-	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
@@ -10,23 +10,28 @@ import (
 	"github.com/jpgomesr/webhook-tester/store"
 )
 
-func WebhookReceiver(w http.ResponseWriter, r *http.Request, s *store.WebhooksReceived) {
+func WebhookReceiver(w http.ResponseWriter, r *http.Request, sw *store.WebhooksReceived, sc *store.Clients) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		fmt.Printf("failed to read body: %v", err)
+		log.Printf("failed to read body: %v", err)
 		return
 	}
 	headers := r.Header
 	method := r.Method
 
+	req := request.WebhookRequest{
+		Method:     method,
+		Headers:    headers,
+		Body:       body,
+		ReceivedAt: time.Now(),
+	}
+
 	go func() {
-		s.Add(request.WebhookRequest{
-			Method:     method,
-			Headers:    headers,
-			Body:       body,
-			ReceivedAt: time.Now(),
-		})
+		sw.Add(req)
+		sc.Broadcast(req)
 	}()
+
+	log.Printf("[webhook] (%s) - %s %s %s", time.Now(), method, headers, body)
 
 	w.WriteHeader(http.StatusOK)
 }
