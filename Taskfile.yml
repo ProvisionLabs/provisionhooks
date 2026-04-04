@@ -1,0 +1,11 @@
+version: '3'
+
+tasks:
+  dev:
+    desc: Run dev environment
+    cmds:
+      - cmd: scripts/dev.sh
+        platforms: [linux, darwin]
+
+      - cmd: powershell -ExecutionPolicy Bypass -File scripts/dev.ps1
+        platforms: [windows]
