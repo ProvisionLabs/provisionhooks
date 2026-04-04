@@ -1,16 +1,19 @@
 # webhook-tester
 
-Webhook Tester is a lightweight Go service for receiving webhook requests locally. It is meant to sit behind a tunnel such as ngrok so external services can call your machine while you inspect the payload.
+Webhook Tester is a lightweight Go service for receiving webhook requests locally and inspecting them in real time from a browser UI.
 
 ## Overview
 
-The current codebase provides a minimal HTTP receiver:
+The current codebase provides:
 
 - `GET /health` for a basic health check
-- `POST /hooks` for accepting webhook payloads
-- In-memory storage for each received request
+- `POST /hooks` for receiving webhook payloads
+- `GET /hooks` for the HTML UI
+- `GET /hooks/events` for SSE realtime updates
+- `GET /hooks/data` for JSON history of captured requests
+- In-memory storage for request history and connected SSE clients
 
-The broader direction described in [docs/overview.md](docs/overview.md) is to grow this into a self-hostable webhook inspection tool with realtime streaming and a browser UI.
+More details are in [docs/overview.md](docs/overview.md).
 
 ## How It Works
 
@@ -18,7 +21,8 @@ The broader direction described in [docs/overview.md](docs/overview.md) is to gr
 2. Expose it publicly with ngrok.
 3. Point a webhook provider at the public URL.
 4. Incoming requests are forwarded to `/hooks`.
-5. The handler captures the method, headers, body, and timestamp in memory.
+5. The server stores the request in memory.
+6. Connected browsers receive the webhook instantly via SSE.
 
 ## Requirements
 
@@ -43,10 +47,13 @@ On Windows, the helper uses `scripts/dev.ps1`. On Linux and macOS, it uses `scri
 
 ## Endpoints
 
-| Method | Path    | Description                                             |
-| ------ | ------- | ------------------------------------------------------- |
-| GET    | /health | Returns `200 OK`                                        |
-| POST   | /hooks  | Reads the request body and stores the webhook in memory |
+| Method | Path          | Description                                |
+| ------ | ------------- | ------------------------------------------ |
+| GET    | /health       | Returns `200 OK`                           |
+| GET    | /hooks        | Serves the web UI                          |
+| POST   | /hooks        | Receives and stores the webhook in memory  |
+| GET    | /hooks/data   | Returns webhook history as JSON            |
+| GET    | /hooks/events | SSE stream with snapshot + realtime events |
 
 ## Example
 
@@ -74,12 +81,13 @@ webhook-tester/
 - No database
 - No authentication
 - No persistence across restarts
-- No request replay or UI in the current implementation
+- No request replay
+- No multi-tenant session isolation
 
 ## Roadmap
 
 The overview in [docs/overview.md](docs/overview.md) describes the intended next steps:
 
-- Realtime request streaming
-- A browser UI for inspecting captured webhooks
-- Request history and other small quality-of-life features
+- Request filtering and search
+- Optional payload size limits and retention policies
+- Better dev ergonomics around public URL discovery

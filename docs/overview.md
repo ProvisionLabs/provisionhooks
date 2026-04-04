@@ -49,10 +49,13 @@ Tools like `webhook.site` or `RequestBin` do something similar but are closed so
 
 ## Core Concepts
 
-### Unique Sessions
-Each user gets a UUID-based endpoint (`/hooks`). Multiple users can use the tool simultaneously without interference.
+### Single Receiver Endpoint
+
+The current implementation receives webhooks at a single endpoint (`POST /hooks`).
+Requests are stored in-memory and shown in the UI.
 
 ### SSE (Server-Sent Events)
+
 SSE is a simple protocol for pushing data from server to browser over a persistent HTTP connection. When a webhook arrives, the Go server instantly notifies the browser — no polling, no WebSocket complexity.
 
 ```
@@ -62,9 +65,11 @@ GET /hooks/events
 ```
 
 ### In-Memory Storage
-No database needed. Requests are stored in a `sync.Map` (Go's thread-safe map) keyed by session ID. This keeps the project simple and fast.
+
+No database needed. Requests are stored in an in-memory slice protected by mutexes. Connected SSE clients are tracked in-memory via channels. This keeps the project simple and fast.
 
 ### Concurrency
+
 Multiple webhooks can arrive at the same time. Go handles this naturally with goroutines — each incoming HTTP request runs in its own goroutine, so nothing blocks.
 
 ---
@@ -80,9 +85,9 @@ webhook-tester/
 │   ├── stream.go            # GET /hooks/events — SSE stream
 │   └── ui.go                # GET /hooks — serves the browser UI
 ├── store/
-│   └── store.go             # In-memory request storage with sync.Map
-├── model/
-│   └── request.go           # Struct representing a captured webhook request
+│   └── store.go             # In-memory storage for requests and SSE clients
+├── request/
+│   └── request.go           # Structs representing captured and API response requests
 └── static/
     └── index.html           # Simple frontend to display captured requests
 ```
@@ -91,47 +96,52 @@ webhook-tester/
 
 ## API Endpoints
 
-| Method | Path | Description                                 |
-|--------|------|---------------------------------------------|
-| `POST` | `/hooks` | Receives a webhook and stores it            |
-| `GET` | `/hooks` | Browser UI for the requests                 |
-| `GET` | `/hooks/events` | SSE stream — pushes new requests to browser |
+| Method | Path            | Description                                 |
+| ------ | --------------- | ------------------------------------------- |
+| `POST` | `/hooks`        | Receives a webhook and stores it            |
+| `GET`  | `/hooks`        | Browser UI for the requests                 |
+| `GET`  | `/hooks/data`   | JSON history of captured requests           |
+| `GET`  | `/hooks/events` | SSE stream — pushes new requests to browser |
 
 ---
 
 ## Go Concepts Demonstrated
 
-| Concept | Where used |
-|---------|------------|
-| HTTP server (`net/http`) | All handlers |
-| Goroutines | Each request handled concurrently |
-| Channels | Notifying SSE clients when new webhook arrives |
-| `sync.Map` | Thread-safe in-memory storage |
-| SSE (manual HTTP streaming) | `stream.go` |
-| Structs and interfaces | `model/request.go` |
-| JSON encoding | Serializing captured requests |
+| Concept                           | Where used                                     |
+| --------------------------------- | ---------------------------------------------- |
+| HTTP server (`net/http`)          | All handlers                                   |
+| Goroutines                        | Each request handled concurrently              |
+| Channels                          | Notifying SSE clients when new webhook arrives |
+| Mutex-protected in-memory storage | `store/store.go`                               |
+| SSE (manual HTTP streaming)       | `stream.go`                                    |
+| Structs and JSON tags             | `request/request.go`                           |
+| JSON encoding                     | Serializing captured requests                  |
 
 ---
 
 ## Build Milestones
 
 ### v0.1 — Receive & Store
-- [ ] `POST /hooks` captures method, headers, body
-- [ ] Store in memory with `sync.Map`
-- [ ] Return 200 OK to the sender
+
+- [x] `POST /hooks` captures method, headers, body
+- [x] Store in memory
+- [x] Return 200 OK to the sender
 
 ### v0.2 — Real-Time Stream
-- [ ] `GET /hooks/events` opens SSE connection
-- [ ] Server pushes new requests to connected clients via channel
-- [ ] Handle client disconnect gracefully
+
+- [x] `GET /hooks/events` opens SSE connection
+- [x] Server pushes new requests to connected clients via channel
+- [x] Handle client disconnect gracefully
 
 ### v0.3 — Browser UI
-- [ ] Simple HTML page that connects to the SSE stream
-- [ ] Displays each captured request with syntax highlighting
-- [ ] Shows method, timestamp, headers, and body
+
+- [x] HTML page connects to the SSE stream
+- [x] Displays each captured request with syntax highlighting
+- [x] Shows method, timestamp, headers, and body
 
 ### v0.4 — Polish
-- [ ] Request history (last N requests stored in memory)
+
+- [x] Request history in memory
 - [ ] Copy URL button (copies the ngrok URL to clipboard)
 - [ ] Print the full public URL on startup if ngrok is detected
 
@@ -190,10 +200,10 @@ That `https://abc123.ngrok.io` is your public URL. Any request to it is forwarde
 
 ### 4. Use your public webhook URL
 
-Take the ngrok URL and append your session path:
+Use the ngrok URL with the webhook endpoint:
 
 ```
-https://abc123.ngrok.io/hooks/my-session
+https://abc123.ngrok.io/hooks
 ```
 
 Paste this into GitHub, Stripe, Slack — anywhere that sends webhooks. When they fire, you'll see the request appear in your browser in real time.
@@ -205,7 +215,7 @@ Paste this into GitHub, Stripe, Slack — anywhere that sends webhooks. When the
 You don't need an external service to develop. Simulate a webhook anytime:
 
 ```bash
-curl -X POST https://abc123.ngrok.io/hooks/my-session \
+curl -X POST https://abc123.ngrok.io/hooks \
   -H "Content-Type: application/json" \
   -d '{"event": "payment.received", "amount": 100}'
 ```
