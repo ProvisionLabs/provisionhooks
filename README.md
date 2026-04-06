@@ -1,8 +1,8 @@
-# webhook-tester
+# ProvisionHooks
 
-![Webhook Tester Demo](docs/webhook-tester.gif)
+![ProvisionHooks Demo](docs/webhook-tester.gif)
 
-Webhook Tester is a lightweight Go service for receiving webhook requests locally and inspecting them in real time from a browser UI.
+ProvisionHooks is a lightweight Go service for receiving webhook requests locally and inspecting them in real time from a browser UI.
 
 ## Overview
 
@@ -70,7 +70,7 @@ The request is accepted with `200 OK`.
 ## Project Structure
 
 ```text
-webhook-tester/
+provisionhooks/
 ├── handler/        request handling logic
 ├── request/        webhook request model
 ├── server/         HTTP server entry point
