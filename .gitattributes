@@ -1,0 +1,2 @@
+# Exclude static UI files from language detection
+static/** linguist-detectable=false
